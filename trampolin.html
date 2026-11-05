@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teemun rubbareille</title>
+    <!-- Google Fonts & Tailwind CSS -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        nordic: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#14b8a6', // Teal
+                            600: '#0d9488',
+                            700: '#0f766e',
+                            800: '#1e3a8a', // Deep Blue
+                            900: '#172554',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .glass-card {
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-nordic-900 via-nordic-800 to-nordic-700 min-h-screen text-slate-800 font-sans flex flex-col justify-between relative overflow-x-hidden">
+
+    <!-- TAUSTALLA KASVAVA ILMAPALLO -->
+    <div class="fixed inset-0 pointer-events-none flex items-center justify-center z-0 overflow-hidden">
+        <div id="balloon-container" class="transition-all duration-700 ease-out flex flex-col items-center opacity-25" style="transform: scale(1);">
+            <div id="balloon-body" class="w-48 h-60 bg-teal-400 rounded-full shadow-2xl relative flex items-center justify-center transition-all duration-700">
+                <div class="absolute w-4 h-6 bg-teal-300 rounded-full top-2 right-6 opacity-60 blur-[2px]"></div>
+                <div class="text-white font-bold text-center drop-shadow-md px-2 z-10">
+                    <span id="balloon-percentage" class="text-2xl">0%</span><br>
+                    <span class="text-xs uppercase tracking-wider">Edistyminen</span>
+                </div>
+            </div>
+            <!-- Ilmapallon solmu ja naru -->
+            <div class="w-4 h-3 bg-teal-600 -mt-1 rounded-sm"></div>
+            <div class="w-0.5 h-32 bg-teal-300/60"></div>
+        </div>
+    </div>
+
+    <!-- YLÄPALKKI -->
+    <header class="bg-nordic-900/80 backdrop-blur-md border-b border-teal-500/20 text-white sticky top-0 z-30 shadow-lg">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="bg-teal-500 p-2 rounded-xl text-nordic-900 font-bold text-xl shadow-inner">🇸🇪</div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight">Teemun papanat ja pökäleet</h1>
+                    <p class="text-xs text-teal-300">Hannunniitun kuuscee</p>
+                </div>
+            </div>
+
+            <!-- Kappalevalitsin -->
+            <div class="flex items-center space-x-2">
+                <label for="chapter-select" class="text-xs text-teal-200 font-medium">Kappale:</label>
+                <select id="chapter-select" onchange="changeChapter(this.value)" class="bg-nordic-800 border border-teal-500/40 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-teal-400 cursor-pointer">
+                    <option value="all">Kaikki sanat</option>
+                    <option value="KPL 1">KPL 1</option>
+                    <option value="KPL 2">KPL 2</option>
+                    <option value="KPL 3">KPL 3</option>
+                    <option value="KPL 4">KPL 4</option>
+                    <option value="KPL 5">KPL 5</option>
+                    <option value="KPL 6">KPL 6</option>
+                    <option value="KPL 7">KPL 7</option>
+                    <option value="HI">HI (Extra)</option>
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <!-- PÄÄSISÄLTÖ -->
+    <main class="max-w-4xl w-full mx-auto px-4 py-8 flex-grow z-10">
+        
+        <!-- NAVIGOINTIVÄLILEHDET -->
+        <div class="flex flex-wrap justify-center gap-2 mb-8 bg-nordic-900/40 p-1.5 rounded-2xl backdrop-blur-md border border-teal-500/20 shadow-xl">
+            <button onclick="switchTab('flashcards')" id="tab-flashcards" class="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all bg-teal-500 text-nordic-900 shadow-md">🗂️ Muistikortit</button>
+            <button onclick="switchTab('quiz')" id="tab-quiz" class="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all text-white hover:bg-white/10">❓ Monivalintavisa</button>
+            <button onclick="switchTab('duel')" id="tab-duel" class="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all text-white hover:bg-white/10">⚔️ Duelli (2P)</button>
+            <button onclick="switchTab('writing')" id="tab-writing" class="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all text-white hover:bg-white/10">✍️ Kirjoitustesti</button>
+            <button onclick="switchTab('list')" id="tab-list" class="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all text-white hover:bg-white/10">📚 Sanastoluettelo</button>
+            <button onclick="switchTab('add')" id="tab-add" class="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all text-white hover:bg-white/10">➕ Lisää sana</button>
+        </div>
+
+        <!-- 1. MUISTIKORTIT -->
+        <section id="view-flashcards" class="space-y-6">
+            <div class="flex justify-between items-center text-teal-200 text-sm px-2">
+                <span id="fc-counter">Kortti 1 / 0</span>
+                <span id="fc-chapter-badge" class="bg-teal-500/20 text-teal-300 px-2.5 py-0.5 rounded-full text-xs font-semibold border border-teal-500/30">Kaikki</span>
+            </div>
+
+            <!-- Kortti -->
+            <div onclick="flipCard()" class="glass-card w-full h-72 rounded-3xl shadow-2xl flex flex-col items-center justify-center p-8 text-center cursor-pointer transform transition-transform duration-300 hover:scale-[1.01] relative group">
+                <div class="absolute top-4 right-4 text-xs text-slate-400 group-hover:text-teal-600 transition-colors">Klikkaa kääntääksesi 🔄</div>
+                <div id="fc-content" class="space-y-4"></div>
+            </div>
+
+            <!-- Ohjauspainikkeet -->
+            <div class="flex justify-between items-center gap-4">
+                <button onclick="prevCard()" class="flex-1 bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-6 rounded-2xl backdrop-blur-md transition-all border border-white/10 shadow-lg">⬅️ Edellinen</button>
+                <button onclick="playAudioCurrent()" class="bg-teal-500 hover:bg-teal-400 text-nordic-900 font-bold p-3.5 rounded-2xl shadow-lg transition-all" title="Kuuntele ääntämys">🔊</button>
+                <button onclick="nextCard()" class="flex-1 bg-teal-500 hover:bg-teal-400 text-nordic-900 font-bold py-3 px-6 rounded-2xl shadow-lg transition-all">Seuraava ➡️</button>
+            </div>
+        </section>
+
+        <!-- 2. MONIVALINTAVISA -->
+        <section id="view-quiz" class="glass-card rounded-3xl p-6 md:p-8 shadow-2xl hidden space-y-6">
+            <div class="flex justify-between items-center border-b border-slate-200 pb-4">
+                <h3 class="text-xl font-bold text-nordic-900">Monivalintavisa</h3>
+                <span id="quiz-score" class="text-sm font-semibold bg-teal-100 text-teal-800 px-3 py-1 rounded-full">Pisteet: 0</span>
+            </div>
+            <div id="quiz-container" class="space-y-6"></div>
+        </section>
+
+        <!-- 3. KAKSINPELI: DUELLI (AJASTIMELLA & SAKKOPISTEILLÄ) -->
+        <section id="view-duel" class="glass-card rounded-3xl p-6 md:p-8 shadow-2xl hidden space-y-6">
+            <div class="flex flex-wrap justify-between items-center border-b border-slate-200 pb-4 gap-4">
+                <div>
+                    <h3 class="text-xl font-bold text-nordic-900">⚔️ Duelli (Kaksinpeli)</h3>
+                    <p class="text-xs text-slate-500">Pelaa yhdellä laitteella vastakkain!</p>
+                </div>
+                <!-- Ajan valinta ja aloitus -->
+                <div class="flex items-center space-x-2">
+                    <label class="text-xs font-semibold text-slate-600">Aika:</label>
+                    <select id="duel-time-select" class="bg-slate-100 border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold focus:outline-none">
+                        <option value="15">15s</option>
+                        <option value="30" selected>30s</option>
+                        <option value="60">60s</option>
+                    </select>
+                    <button onclick="startDuelGame()" id="duel-start-btn" class="bg-teal-500 hover:bg-teal-400 text-nordic-900 font-bold px-4 py-1.5 rounded-lg text-xs shadow-md transition-all">Aloita peli 🚀</button>
+                </div>
+            </div>
+
+            <!-- Ajan näyttö -->
+            <div class="text-center py-1">
+                <span id="duel-timer" class="bg-nordic-900 text-teal-300 font-mono font-bold text-xl px-4 py-1.5 rounded-xl border border-teal-500/30">00:30</span>
+            </div>
+
+            <!-- Pelaajien alueet -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 relative border-2 border-dashed border-teal-500/30 p-4 rounded-2xl">
+                <!-- Pelaaja 1 (🔵) -->
+                <div class="bg-blue-900/10 p-4 rounded-2xl text-center space-y-3 border border-blue-500/20">
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold text-blue-900">Pelaaja 1 🔵</span>
+                        <span id="duel-p1-score" class="bg-blue-600 text-white px-2.5 py-0.5 rounded-full text-sm font-bold">0 p</span>
+                    </div>
+                    <div id="duel-p1-question" class="text-lg font-bold text-slate-800 min-h-[40px] flex items-center justify-center">Klikkaa "Aloita peli"</div>
+                    <div id="duel-p1-options" class="grid grid-cols-2 gap-2"></div>
+                </div>
+
+                <!-- Pelaaja 2 (🔴) -->
+                <div class="bg-rose-900/10 p-4 rounded-2xl text-center space-y-3 border border-rose-500/20">
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold text-rose-900">Pelaaja 2 🔴</span>
+                        <span id="duel-p2-score" class="bg-rose-600 text-white px-2.5 py-0.5 rounded-full text-sm font-bold">0 p</span>
+                    </div>
+                    <div id="duel-p2-question" class="text-lg font-bold text-slate-800 min-h-[40px] flex items-center justify-center">Klikkaa "Aloita peli"</div>
+                    <div id="duel-p2-options" class="grid grid-cols-2 gap-2"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. KIRJOITUSTESTI -->
+        <section id="view-writing" class="glass-card rounded-3xl p-6 md:p-8 shadow-2xl hidden space-y-6">
+            <div class="flex justify-between items-center border-b border-slate-200 pb-4">
+                <h3 class="text-xl font-bold text-nordic-900">Kirjoitusharjoitus</h3>
+                <span id="writing-progress" class="text-sm font-semibold text-teal-700">Sana 1 / 10</span>
+            </div>
+            <div id="writing-container" class="space-y-6 text-center"></div>
+        </section>
+
+        <!-- 5. SANASTOLUETTELO & HAKU -->
+        <section id="view-list" class="glass-card rounded-3xl p-6 md:p-8 shadow-2xl hidden space-y-6">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4 border-b border-slate-200 pb-4">
+                <h3 class="text-xl font-bold text-nordic-900">Sanasto & Haku</h3>
+                <input type="text" id="vocab-search" oninput="filterVocabList()" placeholder="Hae sanaa ruotsiksi tai suomeksi..." class="w-full md:w-72 bg-slate-100 border border-slate-300 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+            </div>
+            <div class="overflow-y-auto max-h-[450px] pr-2 space-y-2" id="vocab-table-container"></div>
+        </section>
+
+        <!-- 6. LISÄÄ SANA -->
+        <section id="view-add" class="glass-card rounded-3xl p-6 md:p-8 shadow-2xl hidden space-y-6">
+            <h3 class="text-xl font-bold text-nordic-900 border-b border-slate-200 pb-4">Lisää oma sanasi</h3>
+            <form onsubmit="addNewWord(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Ruotsiksi</label>
+                    <input type="text" id="new-sv" required placeholder="esim. en katt, katten..." class="w-full bg-slate-100 border border-slate-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Suomeksi</label>
+                    <input type="text" id="new-fi" required placeholder="esim. kissa" class="w-full bg-slate-100 border border-slate-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Kappale</label>
+                    <select id="new-chapter" class="w-full bg-slate-100 border border-slate-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+                        <option value="KPL 1">KPL 1</option>
+                        <option value="KPL 2">KPL 2</option>
+                        <option value="KPL 3">KPL 3</option>
+                        <option value="KPL 4">KPL 4</option>
+                        <option value="KPL 5">KPL 5</option>
+                        <option value="KPL 6">KPL 6</option>
+                        <option value="KPL 7">KPL 7</option>
+                        <option value="HI">HI (Extra)</option>
+                        <option value="Omat">Omat sanat</option>
+                    </select>
+                </div>
+                <button type="submit" class="w-full bg-nordic-800 hover:bg-nordic-900 text-white font-semibold py-3.5 rounded-xl shadow-lg transition-all">Tallenna sanastoon ✨</button>
+            </form>
+        </section>
+
+    </main>
+
+    <!-- ALATUNNITELMA -->
+    <footer class="text-center py-6 text-xs text-teal-200/80 z-10">
+        <p>Opi sitä ruåtsia! -T.Honkala💙Gemini</p>
+    </footer>
+
+    <!-- SKRIPTIT JA LOGIIKKA -->
+    <script>
+        const defaultVocabulary = [
+            { sv: "en adress, adressen, adresser, adresserna", fi: "osoite", chapter: "KPL 1" },
+            { sv: "en affär, affären, affärer, affärerna", fi: "kauppa", chapter: "KPL 7" },
+            { sv: "alla", fi: "kaikki", chapter: "KPL 4" },
+            { sv: "andra", fi: "muut", chapter: "KPL 6" },
+            { sv: "en anfallare, anfallaren, anfallare, anfallarna", fi: "hyökkääjä", chapter: "KPL 3" },
+            { sv: "använda, använder", fi: "käyttää", chapter: "KPL 6" },
+            { sv: "avslappnad, avslappnat, avslappnade", fi: "rento", chapter: "KPL 7" },
+            { sv: "en back, backen, backar, backarna", fi: "pakki, puolustaja", chapter: "KPL 3" },
+            { sv: "ett badrum, badrummet, badrum, badrummen", fi: "kylpyhuone", chapter: "KPL 5" },
+            { sv: "ett bageri, bageriet, bagerier, bagerierna", fi: "leipomo", chapter: "HI" },
+            { sv: "bara", fi: "vain", chapter: "KPL 7" },
+            { sv: "basket", fi: "koripallo", chapter: "KPL 3" },
+            { sv: "berätta, berättar om", fi: "kertoa jostakin", chapter: "KPL 6" },
+            { sv: "betala, betalar", fi: "maksaa, antaa rahaa", chapter: "KPL 7" },
+            { sv: "ett bi, biet, bin, bina", fi: "mehiläinen", chapter: "KPL 4" },
+            { sv: "ett bibliotek, biblioteket, bibliotek, biblioteken", fi: "kirjasto", chapter: "HI" },
+            { sv: "bildkonst", fi: "kuvataide", chapter: "KPL 6" },
+            { sv: "en biljett, biljetten, biljetter, biljetterna", fi: "(pääsy)lippu", chapter: "KPL 3" },
+            { sv: "billig, billigt, billiga", fi: "halpa", chapter: "KPL 7" },
+            { sv: "en björn, björnen, björnar, björnarna", fi: "karhu", chapter: "KPL 4" },
+            { sv: "blå, blått, blåa", fi: "sininen", chapter: "KPL 7" },
+            { sv: "bo, bor", fi: "asua", chapter: "KPL 1" },
+            { sv: "en bok, boken, böcker, böckerna", fi: "kirja", chapter: "KPL 7" },
+            { sv: "en boll, bollen, bollar, bollarna", fi: "pallo", chapter: "KPL 4" },
+            { sv: "en bollhall, bollhallen, bollhallar, bollhallarna", fi: "palloiluhalli", chapter: "HI" },
+            { sv: "en bonusmamma, bonusmamman, bonusmammor, bonusmammorna", fi: "äitipuoli", chapter: "KPL 2" },
+            { sv: "en bonuspappa, bonuspappan, bonuspappor, bonuspapporna", fi: "isäpuoli", chapter: "KPL 2" },
+            { sv: "bra, bättre, bäst", fi: "hyvä, hyvin", chapter: "KPL 1" },
+            { sv: "bred, brett, breda", fi: "leveä", chapter: "KPL 7" },
+            { sv: "en bror, brodern, bröder, bröderna", fi: "veli", chapter: "KPL 2" },
+            { sv: "brun, brunt, bruna", fi: "ruskea", chapter: "KPL 4" },
+            { sv: "bråka, bråkar", fi: "riidellä", chapter: "KPL 2" },
+            { sv: "en buss, bussen, bussar, bussarna", fi: "linja-auto", chapter: "HI" },
+            { sv: "en butikskedja, butikskedjan, butikskedjor, butikskedjorna", fi: "kauppaketju", chapter: "KPL 7" },
+            { sv: "byta, byter", fi: "vaihtaa", chapter: "KPL 7" },
+            { sv: "en byxa, byxan, byxor, byxorna", fi: "housut", chapter: "KPL 7" },
+            { sv: "ett bälte, bältet, bälten, bältena", fi: "vyö", chapter: "KPL 7" },
+            { sv: "bästa", fi: "paras", chapter: "KPL 4" },
+            { sv: "bättre", fi: "parempi", chapter: "KPL 5" },
+            { sv: "börja, börjar", fi: "aloittaa, alkaa", chapter: "KPL 6" },
+            { sv: "en cykel, cykeln, cyklar, cyklarna", fi: "polkupyörä", chapter: "HI" },
+            { sv: "en dag, dagen, dagar, dagarna", fi: "päivä", chapter: "KPL 6" },
+            { sv: "dansa, dansar", fi: "tanssia", chapter: "KPL 3" },
+            { sv: "en dator, datorn, datorer, datorerna", fi: "tietokone", chapter: "KPL 6" },
+            { sv: "de", fi: "he, ne", chapter: "KPL 1" },
+            { sv: "den, det", fi: "se", chapter: "KPL 1" },
+            { sv: "det finns", fi: "on (olemassa)", chapter: "KPL 6" },
+            { sv: "det finns inte", fi: "ei ole (olemassa)", chapter: "KPL 3" },
+            { sv: "det är", fi: "se on", chapter: "KPL 3" },
+            { sv: "din, ditt, dina", fi: "sinun", chapter: "KPL 2" },
+            { sv: "du", fi: "sinä", chapter: "KPL 1" },
+            { sv: "Du då?", fi: "Entä sinä?", chapter: "KPL 1" },
+            { sv: "duscha, duschar", fi: "käydä suihkussa", chapter: "KPL 5" },
+            { sv: "då", fi: "silloin", chapter: "KPL 6" },
+            { sv: "där", fi: "siellä", chapter: "KPL 7" },
+            { sv: "död, dött, döda", fi: "kuollut", chapter: "KPL 2" },
+            { sv: "egen, eget, egna", fi: "oma", chapter: "KPL 7" },
+            { sv: "ekologisk, ekologiskt, ekologiska", fi: "ekologinen, luonnonmukainen", chapter: "KPL 7" },
+            { sv: "en elev, eleven, elever, eleverna", fi: "oppilas", chapter: "KPL 6" },
+            { sv: "eller", fi: "tai", chapter: "KPL 3" },
+            { sv: "engelska", fi: "englannin kieli", chapter: "KPL 6" },
+            { sv: "en familj, familjen, familjer, familjerna", fi: "perhe", chapter: "KPL 2" },
+            { sv: "en far, fadern, fäder, fäderna", fi: "isä", chapter: "KPL 2" },
+            { sv: "en farfar, farfadern, farfäder, farfäderna", fi: "isänisä", chapter: "KPL 2" },
+            { sv: "en farmor, farmodern, farmödrar, farmödrarna", fi: "isänäiti", chapter: "KPL 2" },
+            { sv: "fast", fi: "vaikka", chapter: "KPL 6" },
+            { sv: "ett favoritdjur, favoritdjuret, favoritdjur, favoritdjuren", fi: "lempieläin", chapter: "KPL 4" },
+            { sv: "en favoritfärg, favoritfärgen, favoritfärger, favoritfärgerna", fi: "lempiväri", chapter: "KPL 7" },
+            { sv: "en favoritlåt, favoritlåten, favoritlåtar, favoritlåtarna", fi: "lempikappale", chapter: "KPL 7" },
+            { sv: "en favoritmat, favoritmaten", fi: "lempiruoka", chapter: "KPL 6" },
+            { sv: "en favoritfilm, favoritfilmen, favoritfilmer, favoritfilmerna", fi: "elokuva", chapter: "KPL 2" },
+            { sv: "en finlandssvensk, finlandssvensken, finlandssvenskar, finlandssvenskarna", fi: "suomenruotsalainen", chapter: "HI" },
+            { sv: "en flicka, flickan, flickor, flickorna", fi: "tyttö", chapter: "KPL 3" },
+            { sv: "fotboll", fi: "jalkapallo", chapter: "KPL 3" },
+            { sv: "en fotbollsspelare, fotbollsspelaren, fotbollsspelare, fotbollsspelarna", fi: "jalkapalloilija", chapter: "KPL 5" },
+            { sv: "ett foto, fotot, foton, fotona", fi: "valokuva", chapter: "KPL 4" },
+            { sv: "fotografera, fotograferar", fi: "valokuvata", chapter: "KPL 5" },
+            { sv: "franska", fi: "ranskan kieli", chapter: "KPL 6" },
+            { sv: "fredag", fi: "perjantai", chapter: "KPL 5" },
+            { sv: "fredagsmys", fi: "perjantai-illan herkuttelu", chapter: "KPL 2" },
+            { sv: "fritid, fritiden", fi: "vapaa-aika", chapter: "KPL 5" },
+            { sv: "från", fi: "jonkin luota, jostakin", chapter: "KPL 1" },
+            { sv: "fundera, funderar på", fi: "ajatella, miettiä", chapter: "KPL 7" },
+            { sv: "ett fynd, fyndet, fynd, fynden", fi: "löytö", chapter: "KPL 7" },
+            { sv: "få, får", fi: "saada", chapter: "KPL 3" },
+            { sv: "en fågel, fågeln, fåglar, fåglarna", fi: "lintu", chapter: "KPL 4" },
+            { sv: "ett får, fåret, får, fåren", fi: "lammas", chapter: "KPL 4" },
+            { sv: "en födelsedag, födelsedagen, födelsedagar, födelsedagarna", fi: "syntymäpäivä", chapter: "KPL 1" },
+            { sv: "för", fi: "puolesta", chapter: "KPL 3" },
+            { sv: "förlåt", fi: "anteeksi", chapter: "KPL 1" },
+            { sv: "Förlåt, vad sa du?", fi: "Anteeksi, mitä sanoit?", chapter: "KPL 1" },
+            { sv: "ett försvar, försvaret", fi: "puolustus", chapter: "KPL 3" },
+            { sv: "gammal, gammalt, gamla", fi: "vanha", chapter: "KPL 1" },
+            { sv: "ganska", fi: "aika, melko", chapter: "KPL 6" },
+            { sv: "en garderob, garderoben, garderober, garderoberna", fi: "vaatekaappi", chapter: "KPL 7" },
+            { sv: "en gata, gatan, gator, gatorna", fi: "katu", chapter: "HI" },
+            { sv: "gilla, gillar", fi: "pitää, tykätä", chapter: "KPL 3" },
+            { sv: "glad, glatt, glada", fi: "iloinen", chapter: "KPL 2" },
+            { sv: "glas, glaset", fi: "lasi", chapter: "HI" },
+            { sv: "God dag!", fi: "Hyvää päivää!", chapter: "KPL 1" },
+            { sv: "God morgon!", fi: "Hyvää huomenta!", chapter: "KPL 1" },
+            { sv: "God natt!", fi: "Hyvää yötä!", chapter: "KPL 1" },
+            { sv: "godis, godiset", fi: "karkki", chapter: "KPL 2" },
+            { sv: "Grattis!", fi: "Onnea!", chapter: "KPL 1" },
+            { sv: "en grill, grillen, grillar, grillarna", fi: "grilli", chapter: "HI" },
+            { sv: "grå, grått, gråa", fi: "harmaa", chapter: "KPL 7" },
+            { sv: "grön, grönt, gröna", fi: "vihreä", chapter: "KPL 7" },
+            { sv: "gul, gult, gula", fi: "keltainen", chapter: "KPL 7" },
+            { sv: "en gymnastik, gymnastiken", fi: "liikunta", chapter: "KPL 7" },
+            { sv: "gå, går", fi: "mennä, kävellä", chapter: "KPL 4" },
+            { sv: "gå, går i skolan", fi: "käydä koulua", chapter: "KPL 3" },
+            { sv: "en gång, gången, gånger, gångerna", fi: "kerta", chapter: "KPL 3" },
+            { sv: "gärna", fi: "mielellään", chapter: "KPL 2" },
+            { sv: "göra, gör", fi: "tehdä", chapter: "KPL 2" },
+            { sv: "göra, gör videor", fi: "tehdä videoita", chapter: "KPL 5" },
+            { sv: "ha, har", fi: "olla, omistaa", chapter: "KPL 2" },
+            { sv: "ha, har med mig", fi: "olla mukana", chapter: "KPL 5" },
+            { sv: "Ha en bra dag!", fi: "Mukavaa päivää!", chapter: "KPL 1" },
+            { sv: "en halsduk, halsduken, halsdukar, halsdukarna", fi: "kaulahuivi", chapter: "KPL 7" },
+            { sv: "halv, halvt, halva", fi: "puoli", chapter: "KPL 2" },
+            { sv: "en halvbror, halvbrodern, halvbröder, halvbröderna", fi: "velipuoli", chapter: "KPL 2" },
+            { sv: "en halvsyster, halvsystern, halvsysrar, halvsysrarna", fi: "siskopuoli", chapter: "KPL 2" },
+            { sv: "en hamster, hamstern, hamstrar, hamstrarna", fi: "hamsteri", chapter: "KPL 4" },
+            { sv: "han", fi: "hän (pojaksi)", chapter: "KPL 1" },
+            { sv: "handboll", fi: "käsipallo", chapter: "KPL 3" },
+            { sv: "en handske, handsken, handskar, handskarna", fi: "hanska", chapter: "KPL 7" },
+            { sv: "hans", fi: "hänen (pojan)", chapter: "KPL 1" },
+            { sv: "Hej!", fi: "Hei!", chapter: "KPL 1" },
+            { sv: "Hej då!", fi: "Hei hei!", chapter: "KPL 1" },
+            { sv: "hela", fi: "koko", chapter: "KPL 1" },
+            { sv: "hela tiden", fi: "koko ajan", chapter: "KPL 5" },
+            { sv: "Helt okej.", fi: "Ihan okei.", chapter: "KPL 1" },
+            { sv: "hemma", fi: "kotona", chapter: "KPL 1" },
+            { sv: "henne", fi: "häntä (tyttöä)", chapter: "KPL 1" },
+            { sv: "hennes", fi: "hänen (tytön)", chapter: "KPL 1" },
+            { sv: "hens", fi: "hänen", chapter: "KPL 1" },
+            { sv: "heta, heter", fi: "olla nimeltään", chapter: "KPL 1" },
+            { sv: "historia", fi: "historia", chapter: "KPL 6" },
+            { sv: "en hobby, hobbyn, hobbyer, hobbyerna", fi: "harrastus", chapter: "KPL 3" },
+            { sv: "hon", fi: "hän (tyttö)", chapter: "KPL 1" },
+            { sv: "en hund, hunden, hundar, hundarna", fi: "koira", chapter: "KPL 4" },
+            { sv: "hur?", fi: "kuinka? miten?", chapter: "KPL 1" },
+            { sv: "hur ofta?", fi: "kuinka usein?", chapter: "KPL 3" },
+            { sv: "hurdan, hurdant, hurdana?", fi: "millainen?", chapter: "KPL 2" },
+            { sv: "i", fi: "--ssa/-ssä, jossakin", chapter: "KPL 2" },
+            { sv: "i alla fall", fi: "joka tapauksessa", chapter: "KPL 2" },
+            { sv: "ibland", fi: "joskus", chapter: "KPL 2" },
+            { sv: "en idé, idén, idéer, idéerna", fi: "idea", chapter: "KPL 6" },
+            { sv: "idrott", fi: "liikunta", chapter: "KPL 6" },
+            { sv: "en idrottsgren, idrottsgrenen, idrottsgrenar, idrottsgrenarna", fi: "urheilulaji", chapter: "KPL 3" },
+            { sv: "inomhus", fi: "sisätiloissa", chapter: "KPL 3" },
+            { sv: "intresserad av", fi: "kiinnostunut jostakin", chapter: "KPL 5" },
+            { sv: "ishockey", fi: "jääkiekko", chapter: "KPL 3" },
+            { sv: "ja", fi: "kyllä", chapter: "KPL 1" },
+            { sv: "en jacka, jackan, jackor, jackorna", fi: "takki", chapter: "KPL 7" },
+            { sv: "jag", fi: "minä", chapter: "KPL 1" },
+            { sv: "jeans, jeansen", fi: "farkut", chapter: "KPL 7" },
+            { sv: "ett jobb, jobbet, jobb, jobben", fi: "työ", chapter: "KPL 5" },
+            { sv: "jobba, jobbar", fi: "työskennellä", chapter: "KPL 2" },
+            { sv: "jogga, joggar", fi: "hölkätä", chapter: "KPL 2" },
+            { sv: "just nu", fi: "juuri nyt", chapter: "KPL 2" },
+            { sv: "jättebra", fi: "todella hyvä", chapter: "KPL 3" },
+            { sv: "jättesnäll, jättesnällt, jättesnälla", fi: "todella kiltti", chapter: "KPL 4" },
+            { sv: "ett kaffe, kaffet", fi: "kahvi", chapter: "KPL 7" },
+            { sv: "en kanin, kaninen, kaniner, kaninerna", fi: "kani", chapter: "KPL 4" },
+            { sv: "en katt, katten, katter, katterna", fi: "kissa", chapter: "KPL 4" },
+            { sv: "en klass, klassen, klasser, klasserna", fi: "luokka", chapter: "KPL 6" },
+            { sv: "en klocka, klockan, klockor, klockorna", fi: "kello", chapter: "KPL 6" },
+            { sv: "kläder, kläderna", fi: "vaatteet", chapter: "KPL 7" },
+            { sv: "en ko, kon, kor, korna", fi: "lehmä", chapter: "KPL 4" },
+            { sv: "komma, kommer från", fi: "olla kotoisin, tulla jostakin", chapter: "KPL 1" },
+            { sv: "en kompis, kompisen, kompisar, kompisarna", fi: "kaveri", chapter: "KPL 2" },
+            { sv: "en korgboll", fi: "koripallo", chapter: "KPL 3" },
+            { sv: "en krona, kronan, kronor, kronorna", fi: "kruunu", chapter: "KPL 5" },
+            { sv: "en kronprinsessa, kronprinsessan, kronprinsessor, kronprinsessorna", fi: "kruununprinsessa", chapter: "KPL 2" },
+            { sv: "kul", fi: "kiva", chapter: "KPL 3" },
+            { sv: "en kung, kungen, kungar, kungarna", fi: "kuningas", chapter: "KPL 2" },
+            { sv: "en kungafamilj, kungafamiljen, kungafamiljer, kungafamiljerna", fi: "kuningasperhe", chapter: "KPL 2" },
+            { sv: "ett kungarike, kungariket, kungariken, kungarikena", fi: "kuningaskunta", chapter: "KPL 2" },
+            { sv: "en kyrka, kyrkan, kyrkor, kyrkorna", fi: "kirkko", chapter: "HI" },
+            { sv: "Kämpa på!", fi: "Tsemppiä!", chapter: "KPL 3" },
+            { sv: "en kändis, kändisen, kändisar, kändisarna", fi: "julkkis", chapter: "KPL 3" },
+            { sv: "kärlek", fi: "rakkaus", chapter: "KPL 4" },
+            { sv: "köpa, köper", fi: "ostaa", chapter: "KPL 7" },
+            { sv: "ett köpcentrum, köpcentrumet, köpcentrum, köpcentrumen", fi: "ostoskeskus", chapter: "HI" },
+            { sv: "köttfärssås", fi: "jauhelihakastike", chapter: "KPL 6" },
+            { sv: "ett lag, laget, lag, lagen", fi: "joukkue", chapter: "KPL 5" },
+            { sv: "laga, lagar mat", fi: "laittaa ruokaa", chapter: "KPL 3" },
+            { sv: "lax, laxen", fi: "lohi", chapter: "KPL 6" },
+            { sv: "leggings, leggingsen", fi: "leggingsit", chapter: "KPL 7" },
+            { sv: "lek, leker", fi: "leikkiä", chapter: "KPL 4" },
+            { sv: "en leksak, leksaken, leksaker, leksakerna", fi: "lelu", chapter: "KPL 7" },
+            { sv: "en lektion, lektionen, lektioner, lektionerna", fi: "oppitunti", chapter: "KPL 6" },
+            { sv: "lila", fi: "liila", chapter: "KPL 7" },
+            { sv: "en liten, ett litet, små", fi: "pieni", chapter: "KPL 4" },
+            { sv: "en läxa, läxan, läxor, läxorna", fi: "läksy", chapter: "KPL 2" },
+            { sv: "en lärare, läraren, lärare, lärarna", fi: "opettaja", chapter: "KPL 5" },
+            { sv: "läsa, läser", fi: "lukea", chapter: "KPL 2" },
+            { sv: "lång, långt, långa", fi: "pitkä", chapter: "KPL 6" },
+            { sv: "en mamma, mamman, mammor, mammorna", fi: "äiti", chapter: "KPL 2" },
+            { sv: "en match, matchen, matcher, matcherna", fi: "ottelu", chapter: "KPL 3" },
+            { sv: "matte", fi: "matematiikka", chapter: "KPL 5" },
+            { sv: "med", fi: "kanssa", chapter: "KPL 2" },
+            { sv: "men", fi: "mutta", chapter: "KPL 5" },
+            { sv: "mest", fi: "eniten", chapter: "KPL 5" },
+            { sv: "en miljö, miljön, miljöer, miljöerna", fi: "ympäristö", chapter: "KPL 7" },
+            { sv: "min, mitt, mina", fi: "minun", chapter: "KPL 2" },
+            { sv: "en minut, minuten, minuter, minuterna", fi: "minuutti", chapter: "KPL 3" },
+            { sv: "ett mjukdjur, mjukdjuret, mjukdjur, mjukdjuren", fi: "pehmolelu", chapter: "KPL 4" },
+            { sv: "modersmål", fi: "äidinkieli", chapter: "KPL 6" },
+            { sv: "en morfar, morfadern, morfäder, morfäderna", fi: "isoisä (äidin)", chapter: "KPL 2" },
+            { sv: "en morgon, morgonen, morgnar, morgnarna", fi: "aamu", chapter: "KPL 7" },
+            { sv: "en mormor, mormodern, mormödrar, mormödrarna", fi: "isoäiti (äidin)", chapter: "KPL 2" },
+            { sv: "musik", fi: "musiikki", chapter: "KPL 6" },
+            { sv: "mycket", fi: "paljon", chapter: "KPL 2" },
+            { sv: "en myra, myran, myror, myrorna", fi: "muurahainen", chapter: "KPL 1" },
+            { sv: "må, mår", fi: "voida (olotila)", chapter: "KPL 2" },
+            { sv: "ett mål, målet, mål, målen", fi: "maali", chapter: "KPL 3" },
+            { sv: "måndag", fi: "maanantai", chapter: "KPL 5" },
+            { sv: "många", fi: "monta", chapter: "KPL 5" },
+            { sv: "måste", fi: "täytyy", chapter: "KPL 1" },
+            { sv: "en människa, människan, människor, människorna", fi: "ihminen", chapter: "KPL 4" },
+            { sv: "en mästare, mästaren, mästare, mästarna", fi: "mestari", chapter: "KPL 5" },
+            { sv: "ett namn, namnet, namn, namnen", fi: "nimi", chapter: "KPL 1" },
+            { sv: "nej", fi: "ei", chapter: "KPL 2" },
+            { sv: "ni", fi: "te", chapter: "KPL 1" },
+            { sv: "nu", fi: "nyt", chapter: "KPL 5" },
+            { sv: "nyheter, nyheterna", fi: "uutiset", chapter: "KPL 2" },
+            { sv: "någon, något, några", fi: "joku, jokin, jotkut", chapter: "KPL 2" },
+            { sv: "när", fi: "kun", chapter: "KPL 5" },
+            { sv: "när?", fi: "milloin?", chapter: "KPL 6" },
+            { sv: "nära", fi: "lähellä", chapter: "KPL 3" },
+            { sv: "nästan", fi: "melkein", chapter: "KPL 5" },
+            { sv: "ett nät, nätet, nät, näten", fi: "verkko", chapter: "KPL 7" },
+            { sv: "och", fi: "ja", chapter: "KPL 1" },
+            { sv: "också", fi: "myös", chapter: "KPL 2" },
+            { sv: "ofta", fi: "usein", chapter: "KPL 3" },
+            { sv: "olika", fi: "erilaisia", chapter: "KPL 5" },
+            { sv: "onsdag", fi: "keskiviikko", chapter: "KPL 5" },
+            { sv: "orange", fi: "oranssi", chapter: "KPL 1" },
+            { sv: "oss", fi: "meitä", chapter: "KPL 3" },
+            { sv: "en panik, paniken", fi: "paniikki", chapter: "KPL 7" },
+            { sv: "en pappa, pappan, pappor, papporna", fi: "isä", chapter: "KPL 2" },
+            { sv: "en pastellfärg, pastellfärgen, pastellfärger, pastellfärgerna", fi: "pastelliväri", chapter: "KPL 3" },
+            { sv: "per dag", fi: "per päivä", chapter: "KPL 6" },
+            { sv: "en person, personen, personer, personerna", fi: "henkilö", chapter: "KPL 3" },
+            { sv: "pinsam, pinsamt, pinsamma", fi: "nolo", chapter: "KPL 3" },
+            { sv: "en plats, platsen, platser, platserna", fi: "paikka", chapter: "KPL 3" },
+            { sv: "en pojke, pojken, pojkar, pojkarna", fi: "poika", chapter: "KPL 3" },
+            { sv: "ett pojklag, pojklaget, pojklag, pojklagen", fi: "poikajoukkue", chapter: "KPL 3" },
+            { sv: "populär, populärt, populära", fi: "suosittu", chapter: "KPL 7" },
+            { sv: "en position, positionen, positioner, positionerna", fi: "paikka (pelissä)", chapter: "KPL 3" },
+            { sv: "en post, posten", fi: "posti", chapter: "HI" },
+            { sv: "prata, pratar om", fi: "puhua jostakin", chapter: "KPL 2" },
+            { sv: "en prinsessa, prinsessan, prinsessor, prinsessorna", fi: "prinsessa", chapter: "KPL 2" },
+            { sv: "en professor, professorn, professorer, professorerna", fi: "professori", chapter: "KPL 5" },
+            { sv: "prova, provar", fi: "koettaa", chapter: "KPL 6" },
+            { sv: "på", fi: "päällä", chapter: "KPL 4" },
+            { sv: "en rast, rasten, raster, rasterna", fi: "välitunti", chapter: "KPL 6" },
+            { sv: "rea, rean", fi: "alennusmyynti", chapter: "KPL 7" },
+            { sv: "religion", fi: "uskonto", chapter: "KPL 1" },
+            { sv: "rida, rider", fi: "ratsastaa", chapter: "KPL 3" },
+            { sv: "riktig, riktigt, riktiga", fi: "oikea, aito", chapter: "KPL 7" },
+            { sv: "rita, ritar", fi: "piirtää", chapter: "KPL 5" },
+            { sv: "rolig, roligt, roliga", fi: "hauska", chapter: "KPL 5" },
+            { sv: "rosa", fi: "vaaleanpunainen", chapter: "KPL 7" },
+            { sv: "ett rum, rummet, rum, rummen", fi: "huone", chapter: "KPL 4" },
+            { sv: "runt", fi: "ympäriinsä", chapter: "KPL 7" },
+            { sv: "en råtta, råttan, råttor, råttorna", fi: "rotta", chapter: "KPL 1" },
+            { sv: "röd, rött, röda", fi: "punainen", chapter: "KPL 7" },
+            { sv: "samhällslära", fi: "yhteiskuntaoppi", chapter: "KPL 5" },
+            { sv: "samma", fi: "sama", chapter: "KPL 5" },
+            { sv: "ett schema, schemat, scheman, schemana", fi: "lukujärjestys", chapter: "KPL 5" },
+            { sv: "senap, senapen", fi: "sinappi", chapter: "HI" },
+            { sv: "en serie, serien, serier, serierna", fi: "sarja", chapter: "KPL 3" },
+            { sv: "en servett, servetten, servetter, servetterna", fi: "lautasliina", chapter: "KPL 3" },
+            { sv: "en simhall, simhallen, simhallar, simhallarna", fi: "uimahalli", chapter: "HI" },
+            { sv: "simma, simmar", fi: "uida", chapter: "KPL 3" },
+            { sv: "sitta, sitter", fi: "istua", chapter: "KPL 4" },
+            { sv: "sjunga, sjunger", fi: "laulaa", chapter: "KPL 3" },
+            { sv: "ska", fi: "aikoa", chapter: "KPL 3" },
+            { sv: "en skola, skolan, skolor, skolorna", fi: "koulu", chapter: "KPL 3" },
+            { sv: "en skoldag, skoldagen, skoldagar, skoldagarna", fi: "koulupäivä", chapter: "KPL 2" },
+            { sv: "ett skolämne, skolämnet, skolämnen, skolämnena", fi: "kouluaine", chapter: "KPL 2" },
+            { sv: "ett skolnummer, skolnumret, skolnummer, skolnumren", fi: "koulunumero", chapter: "KPL 5" },
+            { sv: "en sko, skon, skor, skorna", fi: "kenkä", chapter: "KPL 3" },
+            { sv: "skriva, skriver", fi: "kirjoittaa", chapter: "KPL 5" },
+            { sv: "skälla, skäller", fi: "haukkua", chapter: "KPL 4" },
+            { sv: "skön, skönt, sköna", fi: "mukava", chapter: "KPL 7" },
+            { sv: "sluta, slutar", fi: "lopettaa", chapter: "KPL 6" },
+            { sv: "slöjd", fi: "käsityö", chapter: "KPL 5" },
+            { sv: "Smaklig måltid!", fi: "Hyvää ruokahalua!", chapter: "KPL 1" },
+            { sv: "snygg, snyggt, snygga", fi: "hyvännäköinen", chapter: "KPL 7" },
+            { sv: "snäll, snällt, snälla", fi: "kiltti", chapter: "KPL 2" },
+            { sv: "sociala medier", fi: "sosiaalinen media", chapter: "KPL 5" },
+            { sv: "sova, sover", fi: "nukkua", chapter: "KPL 4" },
+            { sv: "spanska", fi: "espanjan kieli", chapter: "KPL 6" },
+            { sv: "spela, spelar", fi: "pelata, soittaa", chapter: "KPL 3" },
+            { sv: "spela spel", fi: "pelata pelejä", chapter: "KPL 3" },
+            { sv: "spela basket", fi: "pelata koripalloa", chapter: "KPL 3" },
+            { sv: "spela dataspel", fi: "pelata tietokonepelejä", chapter: "KPL 5" },
+            { sv: "spela fotboll", fi: "pelata jalkapalloa", chapter: "KPL 3" },
+            { sv: "spela gitarr", fi: "soittaa kitaraa", chapter: "KPL 3" },
+            { sv: "spela innebandy", fi: "pelata salibandya", chapter: "KPL 3" },
+            { sv: "spela korgboll", fi: "pelata koripalloa", chapter: "KPL 3" },
+            { sv: "spela piano", fi: "soittaa pianoa", chapter: "KPL 3" },
+            { sv: "spela teater", fi: "näytellä", chapter: "KPL 3" },
+            { sv: "en spelare, spelaren, spelare, spelarna", fi: "pelaaja", chapter: "KPL 7" },
+            { sv: "starta, startar", fi: "alkaa", chapter: "KPL 3" },
+            { sv: "stor, stort, stora", fi: "suuri", chapter: "KPL 4" },
+            { sv: "en storasyster, storasystern, storasystrar, storasystrarna", fi: "isosisko", chapter: "KPL 2" },
+            { sv: "en storlek, storleken, storlekar, storlekarna", fi: "koko", chapter: "KPL 7" },
+            { sv: "en strumpa, strumpan, strumpor, strumporna", fi: "sukka", chapter: "KPL 7" },
+            { sv: "en surfplatta, surfplattan, surfplattor, surfplattorna", fi: "tabletti", chapter: "KPL 5" },
+            { sv: "svart, svart, svarta", fi: "musta", chapter: "KPL 7" },
+            { sv: "svenska", fi: "ruotsin kieli", chapter: "KPL 6" },
+            { sv: "Svenskfinland", fi: "Suomen ruotsinkieliset alueet", chapter: "HI" },
+            { sv: "Sverigebåten", fi: "Ruotsin-laiva", chapter: "KPL 5" },
+            { sv: "svår, svårt, svåra", fi: "vaikea", chapter: "KPL 5" },
+            { sv: "ett syskon, syskonet, syskon, syskonen", fi: "sisarus", chapter: "KPL 2" },
+            { sv: "en syster, systern, systrar, systrarna", fi: "sisko", chapter: "KPL 2" },
+            { sv: "ta, tar", fi: "ottaa", chapter: "KPL 7" },
+            { sv: "Tack!", fi: "Kiitos!", chapter: "HI" },
+            { sv: "Tack detsamma!", fi: "Kiitos samoin!", chapter: "KPL 1" },
+            { sv: "Tack för intervjun", fi: "Kiitos haastattelusta", chapter: "KPL 1" },
+            { sv: "en tass, tassen, tassar, tassarna", fi: "tassu", chapter: "KPL 4" },
+            { sv: "ett telefonnummer, telefonnumret, telefonnummer, telefonnumren", fi: "puhelinnumero", chapter: "KPL 1" },
+            { sv: "till exempel", fi: "esimerkiksi", chapter: "KPL 1" },
+            { sv: "till slut", fi: "lopuksi", chapter: "KPL 7" },
+            { sv: "tillsammans", fi: "yhdessä", chapter: "KPL 2" },
+            { sv: "en timme, timmen, timmar, timmarna", fi: "tunti", chapter: "KPL 2" },
+            { sv: "tisdag", fi: "tiistai", chapter: "KPL 5" },
+            { sv: "titta, tittar på", fi: "katsoa jotakin", chapter: "KPL 2" },
+            { sv: "Tjena!", fi: "Moi!", chapter: "KPL 1" },
+            { sv: "ett torg, torget, torg, torgen", fi: "tori", chapter: "KPL 5" },
+            { sv: "torsdag", fi: "torstai", chapter: "KPL 5" },
+            { sv: "trevlig, trevligt, trevliga", fi: "mukava", chapter: "KPL 3" },
+            { sv: "Trevlig helg!", fi: "Hyvää viikonloppua!", chapter: "KPL 1" },
+            { sv: "Trevligt veckoslut!", fi: "Hyvää viikonloppua!", chapter: "KPL 1" },
+            { sv: "ett trick, tricket, trick, tricken", fi: "temppu", chapter: "KPL 4" },
+            { sv: "träffa, träffar", fi: "tavata", chapter: "KPL 1" },
+            { sv: "träna, tränar", fi: "harjoitella", chapter: "KPL 3" },
+            { sv: "en tröja, tröjan, tröjor, tröjorna", fi: "paita", chapter: "KPL 7" },
+            { sv: "en t-shirt, t-shirten, t-shirts, t-shirtarna", fi: "T-paita", chapter: "KPL 3" },
+            { sv: "turkos", fi: "turkoosi", chapter: "KPL 7" },
+            { sv: "tyska", fi: "saksan kieli", chapter: "KPL 6" },
+            { sv: "ett täcke, täcket, täcken, täckena", fi: "peitto", chapter: "KPL 4" },
+            { sv: "ungdomar, ungdomarna", fi: "nuoret", chapter: "KPL 1" },
+            { sv: "ute", fi: "ulkona", chapter: "KPL 5" },
+            { sv: "vad?", fi: "mikä?", chapter: "KPL 1" },
+            { sv: "Var så god!", fi: "Ole hyvä!", chapter: "KPL 1" },
+            { sv: "vara, är", fi: "olla", chapter: "KPL 1" },
+            { sv: "varandra", fi: "toisiaan", chapter: "KPL 2" },
+            { sv: "varför?", fi: "miksi?", chapter: "KPL 3" },
+            { sv: "varifrån?", fi: "mistä?", chapter: "KPL 3" },
+            { sv: "varje dag", fi: "joka päivä", chapter: "KPL 4" },
+            { sv: "en vecka, veckan, veckor, veckorna", fi: "viikko", chapter: "KPL 1" },
+            { sv: "en veckodag, veckodagen, veckodagar, veckodagarna", fi: "viikonpäivä", chapter: "KPL 2" },
+            { sv: "ett veckoslut, veckoslutet, veckoslut, veckosluten", fi: "viikonloppu", chapter: "KPL 5" },
+            { sv: "vem?", fi: "kuka?", chapter: "KPL 1" },
+            { sv: "verkligen", fi: "todellakin", chapter: "KPL 1" },
+            { sv: "vi", fi: "me", chapter: "KPL 1" },
+            { sv: "Vi ses!", fi: "Nähdään!", chapter: "KPL 1" },
+            { sv: "viktigast", fi: "tärkein", chapter: "KPL 3" },
+            { sv: "vild, vilt, vilda", fi: "villi", chapter: "KPL 4" },
+            { sv: "vilken, vilket, vilka", fi: "mikä, mitkä", chapter: "KPL 1" },
+            { sv: "vit, vitt, vita", fi: "valkoinen", chapter: "KPL 4" },
+            { sv: "välkommen", fi: "tervetuloa", chapter: "KPL 1" },
+            { sv: "en vän, vännen, vänner, vännerna", fi: "ystävä", chapter: "KPL 3" },
+            { sv: "värma, värmer upp", fi: "lämmittää", chapter: "KPL 5" },
+            { sv: "åka, åker", fi: "matkustaa, mennä", chapter: "KPL 3" },
+            { sv: "en ålder, åldern, åldrar, åldrarna", fi: "ikä", chapter: "KPL 3" },
+            { sv: "ett år, året, år, åren", fi: "vuosi", chapter: "KPL 5" },
+            { sv: "en älg, älgen, älgar, älgarna", fi: "hirvi", chapter: "KPL 4" },
+            { sv: "äta, äter", fi: "syödä", chapter: "KPL 2" }
+        ];
+
+        let customWords = JSON.parse(localStorage.getItem('nordic_custom_words') || '[]');
+        let vocabulary = [...defaultVocabulary, ...customWords];
+
+        let currentChapter = 'all';
+        let activeVocab = [...vocabulary];
+        let currentIndex = 0;
+        let isFlipped = false;
+        let score = 0;
+        let writingIndex = 0;
+        let viewedCount = 0;
+
+        // Duelli-pelin tilamuuttujat
+        let duelTimer = null;
+        let duelTimeLeft = 30;
+        let duelActive = false;
+        let duelScores = { p1: 0, p2: 0 };
+        let duelCorrectP1 = null;
+        let duelCorrectP2 = null;
+
+        function initApp() {
+            changeChapter('all');
+        }
+
+        function changeChapter(chapter) {
+            currentChapter = chapter;
+            if (chapter === 'all') {
+                activeVocab = [...vocabulary];
+            } else {
+                activeVocab = vocabulary.filter(w => w.chapter === chapter);
+            }
+            currentIndex = 0;
+            viewedCount = 0;
+            isFlipped = false;
+            updateBalloon();
+            
+            updateFlashcard();
+            loadQuizQuestion();
+            loadWritingQuestion();
+            renderVocabList();
+            resetDuelUI();
+        }
+
+        function switchTab(tabId) {
+            ['flashcards', 'quiz', 'duel', 'writing', 'list', 'add'].forEach(t => {
+                document.getElementById(`view-${t}`).classList.add('hidden');
+                document.getElementById(`tab-${t}`).className = "px-4 py-2.5 rounded-xl text-sm font-semibold transition-all text-white hover:bg-white/10";
+            });
+            document.getElementById(`view-${tabId}`).classList.remove('hidden');
+            document.getElementById(`tab-${tabId}`).className = "px-4 py-2.5 rounded-xl text-sm font-semibold transition-all bg-teal-500 text-nordic-900 shadow-md";
+
+            if (tabId === 'quiz') loadQuizQuestion();
+            if (tabId === 'writing') loadWritingQuestion();
+        }
+
+        // MUISTIKORTIT
+        function updateFlashcard() {
+            const container = document.getElementById('fc-content');
+            document.getElementById('fc-counter').innerText = activeVocab.length > 0 ? `Kortti ${currentIndex + 1} / ${activeVocab.length}` : `Ei sanoja`;
+            document.getElementById('fc-chapter-badge').innerText = currentChapter;
+
+            if (activeVocab.length === 0) {
+                container.innerHTML = `<p class="text-slate-500">Ei sanoja tässä kappaleessa.</p>`;
+                return;
+            }
+
+            const item = activeVocab[currentIndex];
+            container.innerHTML = !isFlipped ? `
+                <span class="text-xs uppercase tracking-widest text-teal-700 font-semibold">${item.chapter}</span>
+                <h2 class="text-3xl md:text-4xl font-bold text-nordic-900">${item.sv}</h2>
+            ` : `
+                <span class="text-xs uppercase tracking-widest text-teal-700 font-semibold">Suomennos</span>
+                <h2 class="text-3xl md:text-4xl font-bold text-teal-800">${item.fi}</h2>
+                <p class="text-xs text-slate-400">(${item.sv})</p>
+            `;
+        }
+
+        function flipCard() { if (activeVocab.length === 0) return; isFlipped = !isFlipped; updateFlashcard(); }
+        function nextCard() { if (activeVocab.length === 0) return; isFlipped = false; currentIndex = (currentIndex + 1) % activeVocab.length; trackProgress(); updateFlashcard(); }
+        function prevCard() { if (activeVocab.length === 0) return; isFlipped = false; currentIndex = (currentIndex - 1 + activeVocab.length) % activeVocab.length; updateFlashcard(); }
+
+        function playAudioCurrent() {
+            if (activeVocab.length === 0) return;
+            const item = activeVocab[currentIndex];
+            const cleanText = item.sv.split(',')[0].trim();
+            const utterance = new SpeechSynthesisUtterance(cleanText);
+            utterance.lang = 'sv-SE';
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function trackProgress() {
+            if (viewedCount < activeVocab.length) viewedCount++;
+            updateBalloon();
+        }
+
+        function updateBalloon() {
+            const percentage = activeVocab.length > 0 ? Math.min(100, Math.round((viewedCount / activeVocab.length) * 100)) : 0;
+            document.getElementById('balloon-percentage').innerText = `${percentage}%`;
+            const scale = 1 + (percentage / 100) * 1.2;
+            document.getElementById('balloon-body').style.transform = `scale(${scale})`;
+
+            if (percentage === 100 && activeVocab.length > 0) {
+                confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+            }
+        }
+
+        // MONIVALINTAVISA
+        let currentQuizCorrect = null;
+
+        function loadQuizQuestion() {
+            if (activeVocab.length < 4) {
+                document.getElementById('quiz-container').innerHTML = `<p class="text-center text-slate-500 py-6">Tarvitaan vähintään 4 sanaa valitussa kappaleessa visaa varten!</p>`;
+                return;
+            }
+
+            const correctItem = activeVocab[Math.floor(Math.random() * activeVocab.length)];
+            currentQuizCorrect = correctItem;
+
+            let options = [correctItem];
+            while (options.length < 4) {
+                let randomItem = vocabulary[Math.floor(Math.random() * vocabulary.length)];
+                if (!options.includes(randomItem)) options.push(randomItem);
+            }
+            options.sort(() => Math.random() - 0.5);
+
+            let html = `
+                <div class="text-center space-y-2 mb-6">
+                    <p class="text-xs uppercase tracking-widest text-teal-700 font-bold">${correctItem.chapter}</p>
+                    <h4 class="text-2xl font-bold text-nordic-900">${correctItem.sv}</h4>
+                    <p class="text-xs text-slate-400">Mikä on suomeksi?</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            `;
+
+            options.forEach(opt => {
+                html += `<button onclick="checkQuizAnswer('${opt.fi.replace(/'/g, "\\'")}', this)" class="bg-slate-100 hover:bg-teal-50 border border-slate-200 text-nordic-900 font-semibold p-4 rounded-2xl transition-all shadow-sm text-left">${opt.fi}</button>`;
+            });
+
+            html += `</div>`;
+            document.getElementById('quiz-container').innerHTML = html;
+        }
+
+        function checkQuizAnswer(selectedFi, btnElement) {
+            const allBtns = document.querySelectorAll('#quiz-container button');
+            allBtns.forEach(b => b.disabled = true);
+
+            if (selectedFi === currentQuizCorrect.fi) {
+                btnElement.className = "bg-emerald-500 text-white font-semibold p-4 rounded-2xl shadow-md text-left transition-all";
+                score += 10;
+                document.getElementById('quiz-score').innerText = `Pisteet: ${score}`;
+                trackProgress();
+            } else {
+                btnElement.className = "bg-rose-500 text-white font-semibold p-4 rounded-2xl shadow-md text-left transition-all";
+                allBtns.forEach(b => {
+                    if (b.innerText === currentQuizCorrect.fi) b.className = "bg-emerald-500 text-white font-semibold p-4 rounded-2xl shadow-md text-left transition-all";
+                });
+            }
+
+            setTimeout(() => { loadQuizQuestion(); }, 1400);
+        }
+
+        // DUELLI-PELI (KAPSILEET, AJASTIN, VÄHENNYS PISTEISTÄ, VOITTAJAN JULISTUS)
+        function resetDuelUI() {
+            clearInterval(duelTimer);
+            duelActive = false;
+            duelScores = { p1: 0, p2: 0 };
+            document.getElementById('duel-p1-score').innerText = '0 p';
+            document.getElementById('duel-p2-score').innerText = '0 p';
+            document.getElementById('duel-p1-question').innerText = 'Klikkaa "Aloita peli"';
+            document.getElementById('duel-p2-question').innerText = 'Klikkaa "Aloita peli"';
+            document.getElementById('duel-p1-options').innerHTML = '';
+            document.getElementById('duel-p2-options').innerHTML = '';
+            document.getElementById('duel-start-btn').disabled = false;
+            document.getElementById('duel-start-btn').innerText = 'Aloita peli 🚀';
+        }
+
+        function startDuelGame() {
+            if (activeVocab.length < 4) {
+                alert("Valitse kappale, jossa on vähintään 4 sanaa Duellia varten!");
+                return;
+            }
+
+            clearInterval(duelTimer);
+            duelScores = { p1: 0, p2: 0 };
+            document.getElementById('duel-p1-score').innerText = '0 p';
+            document.getElementById('duel-p2-score').innerText = '0 p';
+
+            const selectedSeconds = parseInt(document.getElementById('duel-time-select').value);
+            duelTimeLeft = selectedSeconds;
+            duelActive = true;
+
+            document.getElementById('duel-start-btn').disabled = true;
+            document.getElementById('duel-start-btn').innerText = 'Peli käynnissä...';
+            updateDuelTimerDisplay();
+
+            loadDuelQuestionForPlayer('p1');
+            loadDuelQuestionForPlayer('p2');
+
+            duelTimer = setInterval(() => {
+                duelTimeLeft--;
+                updateDuelTimerDisplay();
+
+                if (duelTimeLeft <= 0) {
+                    endDuelGame();
+                }
+            }, 1000);
+        }
+
+        function updateDuelTimerDisplay() {
+            const sec = duelTimeLeft < 10 ? `0${duelTimeLeft}` : `${duelTimeLeft}`;
+            document.getElementById('duel-timer').innerText = `00:${sec}`;
+        }
+
+        function loadDuelQuestionForPlayer(player) {
+            if (!duelActive) return;
+
+            const correctItem = activeVocab[Math.floor(Math.random() * activeVocab.length)];
+            if (player === 'p1') duelCorrectP1 = correctItem;
+            else duelCorrectP2 = correctItem;
+
+            let options = [correctItem];
+            while (options.length < 4) {
+                let r = vocabulary[Math.floor(Math.random() * vocabulary.length)];
+                if (!options.includes(r)) options.push(r);
+            }
+            options.sort(() => Math.random() - 0.5);
+
+            document.getElementById(`duel-${player}-question`).innerText = correctItem.sv;
+            let optContainer = document.getElementById(`duel-${player}-options`);
+            let html = '';
+            options.forEach(opt => {
+                html += `<button onclick="checkDuelAnswer('${player}', '${opt.fi.replace(/'/g, "\\'")}', this)" class="bg-white hover:bg-teal-50 border border-slate-200 text-nordic-900 font-semibold p-2.5 rounded-xl text-xs transition-all shadow-sm">${opt.fi}</button>`;
+            });
+            optContainer.innerHTML = html;
+        }
+
+        function checkDuelAnswer(player, selectedFi, btnElement) {
+            if (!duelActive) return;
+
+            const correct = (player === 'p1') ? duelCorrectP1 : duelCorrectP2;
+
+            if (selectedFi === correct.fi) {
+                btnElement.className = "bg-emerald-500 text-white font-bold p-2.5 rounded-xl text-xs shadow-md transition-all";
+                duelScores[player] += 1;
+                trackProgress();
+            } else {
+                btnElement.className = "bg-rose-500 text-white font-bold p-2.5 rounded-xl text-xs shadow-md transition-all";
+                duelScores[player] -= 1; // VÄHENTÄÄ PISTEEN VÄÄRÄSTÄ VASTAUKSESTA!
+            }
+
+            document.getElementById(`duel-${player}-score`).innerText = `${duelScores[player]} p`;
+
+            // Ladataan uusi kysymys kyseiselle pelaajalle pienellä viiveellä
+            setTimeout(() => {
+                if (duelActive) loadDuelQuestionForPlayer(player);
+            }, 600);
+        }
+
+        function endDuelGame() {
+            clearInterval(duelTimer);
+            duelActive = false;
+            document.getElementById('duel-start-btn').disabled = false;
+            document.getElementById('duel-start-btn').innerText = 'Pelaa uudelleen 🔄';
+
+            let winnerText = '';
+            if (duelScores.p1 > duelScores.p2) {
+                winnerText = `🎉 PELAAJA 1 VOITTI! (${duelScores.p1} - ${duelScores.p2})`;
+                confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+            } else if (duelScores.p2 > duelScores.p1) {
+                winnerText = `🎉 PELAAJA 2 VOITTI! (${duelScores.p2} - ${duelScores.p1})`;
+                confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+            } else {
+                winnerText = `🤝 TASAPELI! (${duelScores.p1} - ${duelScores.p2})`;
+            }
+
+            document.getElementById('duel-p1-question').innerText = winnerText;
+            document.getElementById('duel-p2-question').innerText = winnerText;
+            document.getElementById('duel-p1-options').innerHTML = '';
+            document.getElementById('duel-p2-options').innerHTML = '';
+        }
+
+        // KIRJOITUSTESTI
+        function loadWritingQuestion() {
+            if (activeVocab.length === 0) return;
+            if (writingIndex >= activeVocab.length) writingIndex = 0;
+
+            const item = activeVocab[writingIndex];
+            document.getElementById('writing-progress').innerText = `Sana ${writingIndex + 1} / ${activeVocab.length}`;
+
+            let html = `
+                <div class="space-y-4 max-w-md mx-auto">
+                    <p class="text-xs uppercase tracking-widest text-teal-700 font-bold">${item.chapter}</p>
+                    <h4 class="text-3xl font-bold text-nordic-900">${item.fi}</h4>
+                    <p class="text-xs text-slate-500">Kirjoita sana ruotsiksi:</p>
+                    <form onsubmit="checkWritingAnswer(event, '${item.sv.replace(/'/g, "\\'")}')" class="space-y-3">
+                        <input type="text" id="writing-input" autocomplete="off" autofocus class="w-full bg-slate-100 border border-slate-300 rounded-xl px-4 py-3 text-center text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-teal-500">
+                        <button type="submit" class="w-full bg-teal-500 hover:bg-teal-400 text-nordic-900 font-bold py-3 rounded-xl shadow-lg transition-all">Tarkista ✍️</button>
+                    </form>
+                    <div id="writing-feedback" class="text-sm font-semibold min-h-[24px]"></div>
+                </div>
+            `;
+            document.getElementById('writing-container').innerHTML = html;
+        }
+
+        function checkWritingAnswer(event, correctSv) {
+            event.preventDefault();
+            const inputVal = document.getElementById('writing-input').value.trim().toLowerCase();
+            const cleanCorrect = correctSv.split(',')[0].trim().toLowerCase();
+            const feedback = document.getElementById('writing-feedback');
+
+            if (inputVal === cleanCorrect) {
+                feedback.className = "text-emerald-600 font-bold";
+                feedback.innerText = "Oikein! Hienoa työtä! 🎉";
+                trackProgress();
+                setTimeout(() => {
+                    writingIndex++;
+                    loadWritingQuestion();
+                }, 1200);
+            } else {
+                feedback.className = "text-rose-600 font-bold";
+                feedback.innerText = `Väärin. Oikea muoto on: ${correctSv}`;
+                setTimeout(() => {
+                    writingIndex++;
+                    loadWritingQuestion();
+                }, 2200);
+            }
+        }
+
+        // SANASTOLUETTELO
+        function renderVocabList(filterText = '') {
+            const container = document.getElementById('vocab-table-container');
+            const filtered = activeVocab.filter(item => 
+                item.sv.toLowerCase().includes(filterText.toLowerCase()) || 
+                item.fi.toLowerCase().includes(filterText.toLowerCase())
+            );
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<p class="text-center text-slate-400 py-6">Ei hakutuloksia.</p>`;
+                return;
+            }
+
+            let html = `<div class="divide-y divide-slate-200">`;
+            filtered.forEach(item => {
+                html += `
+                    <div class="py-3 px-4 flex justify-between items-center hover:bg-slate-50 rounded-xl transition-colors">
+                        <div>
+                            <p class="font-bold text-nordic-900">${item.sv}</p>
+                            <p class="text-sm text-slate-600">${item.fi}</p>
+                        </div>
+                        <span class="bg-teal-100 text-teal-800 text-xs font-semibold px-2.5 py-1 rounded-full">${item.chapter}</span>
+                    </div>
+                `;
+            });
+            html += `</div>`;
+            container.innerHTML = html;
+        }
+
+        function filterVocabList() {
+            const query = document.getElementById('vocab-search').value;
+            renderVocabList(query);
+        }
+
+        // OMAN SANAN LISÄYS
+        function addNewWord(event) {
+            event.preventDefault();
+            const sv = document.getElementById('new-sv').value.trim();
+            const fi = document.getElementById('new-fi').value.trim();
+            const chapter = document.getElementById('new-chapter').value;
+
+            const newEntry = { sv, fi, chapter };
+            customWords.push(newEntry);
+            localStorage.setItem('nordic_custom_words', JSON.stringify(customWords));
+
+            vocabulary.push(newEntry);
+            changeChapter(currentChapter);
+
+            alert("Sana lisätty onnistuneesti sanastoon!");
+            document.getElementById('new-sv').value = '';
+            document.getElementById('new-fi').value = '';
+            switchTab('flashcards');
+        }
+
+        window.onload = initApp;
+    </script>
+</body>
+</html>
